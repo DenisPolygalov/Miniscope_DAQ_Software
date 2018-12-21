@@ -242,8 +242,8 @@ BOOL CMiniScopeControlDlg::OnInitDialog()
 
 	behavGotROI = false;
 	dragging= false;
-	mScopeCamID = 0;
-	mBehaviorCamID = 1;
+	mScopeCamID = 1;
+	mBehaviorCamID = 0;
 	mMouseName = "name";
 	mNote = "";
 	getScreenShot = false;
@@ -287,7 +287,7 @@ BOOL CMiniScopeControlDlg::OnInitDialog()
 	StartingTime = { 0 };
 	EndingTime = { 0 };
 
-	mMSFPS = 1;
+	mMSFPS = 2;
 	//------------ Timer for cameras -----------
 	QueryPerformanceFrequency(&Frequency); 
 	QueryPerformanceCounter(&StartingTime);
@@ -493,11 +493,14 @@ void CMiniScopeControlDlg::OnBnClickedScopeconnect()
 	if (behaviorCamConnected == false) 
 		GetDlgItem(IDC_RECORD)->EnableWindow(TRUE);
 
-	cv::namedWindow("msCam",CV_WINDOW_NORMAL);// CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO
+	cv::namedWindow("msCam",CV_WINDOW_AUTOSIZE);// CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO
 	cv::moveWindow("msCam", 10,10);
 	//cv::resizeWindow("msCam",752,480);
 	//cv::resizeWindow("msCam",1280,1024);
 	msCam.open(mScopeCamID);
+	if (!msCam.isOpened()) {
+		Sleep(1000);
+	}
 	
 	//msCam.set(CV_CAP_PROP_CONVERT_RGB,FALSE); //Added to fix messed up top 8 bit of pixel stream
 
@@ -517,6 +520,7 @@ void CMiniScopeControlDlg::OnBnClickedScopeconnect()
 	mSliderScopeExposure.SetPos(mScopeExposure/255*100);*/
 	
 	msCam.set(CV_CAP_PROP_SATURATION, SET_CMOS_SETTINGS); //Initiallizes CMOS sensor (FPS, gain and exposure enabled...)
+	msCam.set(CV_CAP_PROP_SATURATION, FPS20);
 
 	mScopeExposure = 255;
 	mSliderScopeExposure.SetPos(mScopeExposure);
@@ -753,12 +757,14 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 		
 		status = self->msCam.retrieve(self->msFrame[self->msWritePos%BUFFERLENGTH]);
 		if (status == false) {
-			self->record = false; //Commented out to not end recording Daniel 11_10_2015
+			//self->record = false; //Commented out to not end recording Daniel 11_10_2015
 			self->mMSDroppedFrames++; //Added frame drop tracker Daniel 11_10_2015
-			self->AddListText(L"msCam frame retrieve error! Recording ended.");
+			self->AddListText(L"msCam frame retrieve error!");// Recording ended.");
 			//self->dFrameDrop.ShowWindow(SW_SHOW);//popup dialog box Daniel 11_10_2015
 			cv::imshow("msCam",droppedFrameImage);
-			break; //removed break Daniel 11_10_2015
+			//break; //removed break Daniel 11_10_2015
+			self->msCam.release(); // *** Very dirty trick (D.P.) ***
+			self->msCam.open(self->mScopeCamID);
 		}
 		else {//Added else Daniel 11_10_2015
 			if (self->getScreenShot == true) {
